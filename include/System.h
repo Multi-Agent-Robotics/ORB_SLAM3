@@ -186,6 +186,10 @@ public:
 
     float GetImageScale();
 
+    auto get_tracker() -> Tracking* { return mpTracker; }
+
+
+
 #ifdef REGISTER_TIMES
     void InsertRectTime(double& time);
     void InsertResizeTime(double& time);
