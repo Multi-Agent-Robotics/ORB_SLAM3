@@ -33,6 +33,7 @@
 
 #include <mutex>
 #include <chrono>
+#include <algorithm>
 
 
 using namespace std;
@@ -3649,6 +3650,45 @@ bool Tracking::Relocalization()
         else
         {
             int nmatches = matcher.SearchByBoW(pKF,mCurrentFrame,vvpMapPointMatches[i]);
+            // COMMENT(22-05-2023 09:41:03, jens, filtering): maybe filtering should be done here.
+            // In case the filtering would bring the amount of matches below 15, we should discard the keyframe
+
+            // ADDED(22-05-2023 09:31:20, jens, filtering): outliers being filtered from vvpMapPointMatches before ransac
+            // filtering known outliers from vvpMapPointMatches
+            // every outlier in the circular buffer is a known outlier
+            bool filtering = false;
+            for (auto mappoint : vvpMapPointMatches[i]) {
+                // for each entry of mappoint lists in the circular buffer
+                // check each mappoint if it is a known outlier
+                // if it is a known outlier, remove it from vvMapPointMatches
+
+                for (auto frame_outliers : outlier_memory) {
+                    // for each frame_outliers in the circular buffer
+                    // check if the mappoint is in the frame_outliers
+                    // if it is, remove it from vvMapPointMatches
+                    // if it is not, continue
+                    if (std::find(frame_outliers.begin(), frame_outliers.end(), mappoint) != frame_outliers.end()) {
+
+                        // TODO(24-05-2023 09:46:24, jens, test): print or count if anything is filtered
+                        // COMMENT(24-05-2023 09:48:50, jens, match): maybe match similarly to SearchByBoW instead
+
+                        // if the mappoint is in the frame_outliers
+                        // remove it from vvMapPointMatches
+                        vvpMapPointMatches[i].erase(std::remove(vvpMapPointMatches[i].begin(), vvpMapPointMatches[i].end(), mappoint), vvpMapPointMatches[i].end());
+
+                        // set filtering to true
+                        if (!filtering) {
+                            filtering = true;
+                        }
+                    }
+                }
+            }
+            // if we have filtered outliers from vvpMapPointMatches
+            // nmatches must have decreased thus needing to be updates
+            if (filtering) {
+                nmatches = vvpMapPointMatches[i].size();
+            }
+            // ----------------------------------------------------------------------------------------------
             if(nmatches<15)
             {
                 vbDiscarded[i] = true;

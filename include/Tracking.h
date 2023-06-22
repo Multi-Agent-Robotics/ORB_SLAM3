@@ -39,6 +39,8 @@
 
 #include "GeometricCamera.h"
 
+#include "circular-buffer.hpp"
+
 #include <mutex>
 #include <unordered_set>
 
@@ -368,6 +370,8 @@ protected:
 
 public:
     cv::Mat mImRight;
+    // ADDED(19-05-2023 14:48:02, jens, outlier): circular buffer for outlier memory, memory size 10 frames
+    CircularBuffer<std::vector<MapPoint*>, 10> outlier_memory;
 };
 
 } //namespace ORB_SLAM
