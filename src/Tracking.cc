@@ -1302,11 +1302,14 @@ bool Tracking::ParseIMUParamFile(cv::FileStorage &fSettings)
 {
     bool b_miss_params = false;
 
-    cv::Mat cvTbc;
+    // cv::Mat cvTbc;
+    cv::Mat cvTbc = cv::Mat::eye(4,4,CV_32F);
     cv::FileNode node = fSettings["Tbc"];
     if(!node.empty())
     {
-        cvTbc = node.mat();
+        // cvTbc = node.mat();
+        cv::Mat temp = node.mat();
+        temp.convertTo(cvTbc, CV_32F);
         if(cvTbc.rows != 4 || cvTbc.cols != 4)
         {
             std::cerr << "*Tbc matrix have to be a 4x4 transformation matrix*" << std::endl;
