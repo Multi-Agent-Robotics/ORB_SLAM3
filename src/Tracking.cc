@@ -28,6 +28,7 @@
 #include "KannalaBrandt8.h"
 #include "MLPnPsolver.h"
 #include "GeometricTools.h"
+#include "log-macro.hpp"
 
 #include <iostream>
 
@@ -3612,7 +3613,9 @@ void Tracking::UpdateLocalKeyFrames()
 
 bool Tracking::Relocalization()
 {
-    Verbose::PrintMess("Starting relocalization", Verbose::VERBOSITY_NORMAL);
+    static unsigned int number_of_times_called = 0;
+    DEBUG_LOG(stderr, "Relocalization called %d times", number_of_times_called++);
+    // Verbose::PrintMess("Starting relocalization", Verbose::VERBOSITY_NORMAL);
     // Compute Bag of Words Vector
     mCurrentFrame.ComputeBoW();
 
@@ -3621,7 +3624,8 @@ bool Tracking::Relocalization()
     vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectRelocalizationCandidates(&mCurrentFrame, mpAtlas->GetCurrentMap());
 
     if(vpCandidateKFs.empty()) {
-        Verbose::PrintMess("There are not candidates", Verbose::VERBOSITY_NORMAL);
+        DEBUG_LOG(stderr, "There are not candidates");
+        // Verbose::PrintMess("There are not candidates", Verbose::VERBOSITY_NORMAL);
         return false;
     }
 
@@ -3716,14 +3720,52 @@ bool Tracking::Relocalization()
             if(vbDiscarded[i])
                 continue;
 
+            // FOUND(15-05-2023 14:00:52, jens, ransac): run ransac - this must be where the outlier memory will need to be implemented
+
             // Perform 5 Ransac Iterations
+            // FOUND(15-05-2023 14:39:39, jens, outliers): this is the output vector from the ransac solver, indicating inliers and outliers
             vector<bool> vbInliers;
+            vector<std::size_t> outlier_feature_indices;
+            vector<MapPoint*> outlier_features; // ADDED(19-05-2023 14:26:23, jens, outlier): list of outliers from the ransac solver
             int nInliers;
             bool bNoMore;
 
             MLPnPsolver* pSolver = vpMLPnPsolvers[i];
             Eigen::Matrix4f eigTcw;
-            bool bTcw = pSolver->iterate(5,bNoMore,vbInliers,nInliers, eigTcw);
+            // TODO(17-05-2023 10:04:12, jens, remember): the list of outliers could be given as an output argument
+            // to psolver->iterate.
+            // COMMENT(17-05-2023 10:05:03, jens, forget): somehow the outliers needs to be forgotten after
+            // X frames
+            // ADDED(22-05-2023 09:35:18, jens, outlier): outlier_featues output argument from the ransac solver
+            bool bTcw = pSolver->iterate(5, bNoMore, vbInliers, nInliers, eigTcw, outlier_feature_indices);
+
+            for (auto index : outlier_feature_indices) {
+                
+                outlier_features.push_back(vvpMapPointMatches[i][index]);
+            }
+
+            DEBUG_LOG(stderr, "outlier_features.size(): %d", outlier_features.size());
+
+            // ADDED(22-05-2023 09:33:30, jens, register): registering outliers and remembering them
+            // the outlier_features are to be registered as outliers
+            for (auto mappoint : outlier_features) {
+                mappoint->registered_outlier = true;
+            }
+
+            // ADDED(19-05-2023 14:51:00, jens, outlier): add the outliers to the memory
+            auto optional_outlier_forget = outlier_memory.push_back(outlier_features);
+
+            // ADDED(22-05-2023 09:34:41, jens, forget): forgetting the outliers coming out the other end of the circular buffer
+            // the optional output from the outlier_memory.push_back is a list of outliers to forget
+            if (optional_outlier_forget.has_value()) {
+                auto outlier_forget = optional_outlier_forget.value();
+
+                for (auto mappoint : outlier_forget) {
+                    mappoint->registered_outlier = false;
+                }
+            }
+            // -----------------------------------------------------------------------------------------
+
 
             // If Ransac reachs max. iterations discard keyframe
             if(bNoMore)

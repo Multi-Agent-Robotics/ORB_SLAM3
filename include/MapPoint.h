@@ -208,7 +208,7 @@ public:
     unsigned int mnOriginMapId;
 
     // ADDED(22-05-2023 09:25:59, jens, outlier): outlier flag
-    bool registered_outlier;
+    bool registered_outlier = false;
 
 protected:    
 

@@ -5,6 +5,7 @@ IF (NOT CMAKE_BUILD_TYPE)
         SET (CMAKE_BUILD_TYPE Release)
 ENDIF ()
 
+SET (CMAKE_BUILD_TYPE Release)
 set (CMAKE_CXX_CERSION 17)
 
 # MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
@@ -92,6 +93,7 @@ add_library (${PROJECT_NAME} SHARED
         src/TwoViewReconstruction.cc
         src/Config.cc
         src/Settings.cc
+        src/log-macro.hpp
         include/circular-buffer.hpp
         include/System.h
         include/Tracking.h
@@ -125,6 +127,8 @@ add_library (${PROJECT_NAME} SHARED
         include/Settings.h)
 
 target_compile_features (${PROJECT_NAME} PRIVATE cxx_std_17)
+
+target_compile_options (${PROJECT_NAME} PRIVATE -Wno-deprecated-declarations)
 
 add_subdirectory (Thirdparty/g2o)
 

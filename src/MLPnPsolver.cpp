@@ -96,14 +96,15 @@ namespace ORB_SLAM3 {
         SetRansacParameters();
     }
 
-    //RANSAC methods
-    bool MLPnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers, Eigen::Matrix4f &Tout){
+        //RANSAC methods
+    // ADDED(19-05-2023 14:36:29, jens, outliers): output outlier list
+    bool MLPnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers, Eigen::Matrix4f &Tout, vector<std::size_t> &outlier_feature_indices) {
         Tout.setIdentity();
         bNoMore = false;
 	    vbInliers.clear();
 	    nInliers=0;
 
-	    if(N<mRansacMinInliers)
+	    if(N < mRansacMinInliers)
 	    {
 	        bNoMore = true;
 	        return false;
@@ -112,7 +113,7 @@ namespace ORB_SLAM3 {
 	    vector<size_t> vAvailableIndices;
 
 	    int nCurrentIterations = 0;
-	    while(mnIterations<mRansacMaxIts || nCurrentIterations<nIterations)
+	    while(mnIterations < mRansacMaxIts || nCurrentIterations < nIterations)
 	    {
 	        nCurrentIterations++;
 	        mnIterations++;
@@ -166,11 +167,13 @@ namespace ORB_SLAM3 {
 	        // Check inliers
 	        CheckInliers();
 
-	        if(mnInliersi>=mRansacMinInliers)
+	        if(mnInliersi >= mRansacMinInliers)
 	        {
 	            // If it is the best solution so far, save it
-	            if(mnInliersi>mnBestInliers)
+	            if(mnInliersi > mnBestInliers)
 	            {
+                    // FOUND(15-05-2023 14:04:10, jens, inliers): this is the current best solution,
+                    // thus ultimately it is the outliers (false) values from mvbBestInliers that are to be remembered
 	                mvbBestInliers = mvbInliersi;
 	                mnBestInliers = mnInliersi;
 
@@ -188,12 +191,17 @@ namespace ORB_SLAM3 {
 
 	            if(Refine())
 	            {
+                    // FOUND(15-05-2023 14:21:28, jens, ransac): this must be where ransac "finished"
+                    // and the final outliers are to be remembered, for the next ransac solving procedure
 	                nInliers = mnRefinedInliers;
 	                vbInliers = vector<bool>(mvpMapPointMatches.size(),false);
 	                for(int i=0; i<N; i++)
 	                {
-	                    if(mvbRefinedInliers[i])
+	                    if(mvbRefinedInliers[i]) {
 	                        vbInliers[mvKeyPointIndices[i]] = true;
+                        } else {
+                            outlier_feature_indices.push_back(mvKeyPointIndices[i]);
+                        }
 	                }
 	                Tout = mRefinedTcw;
 	                return true;
@@ -202,17 +210,22 @@ namespace ORB_SLAM3 {
 	        }
 	    }
 
-	    if(mnIterations>=mRansacMaxIts)
+	    if(mnIterations >= mRansacMaxIts)
 	    {
 	        bNoMore=true;
-	        if(mnBestInliers>=mRansacMinInliers)
+	        if(mnBestInliers >= mRansacMinInliers)
 	        {
-	            nInliers=mnBestInliers;
+                // FOUND(15-05-2023 14:23:08, jens, ransac): this must be where ransac "finished"
+                // and the final outliers are to be remembered, for the next ransac solving procedure
+	            nInliers = mnBestInliers;
 	            vbInliers = vector<bool>(mvpMapPointMatches.size(),false);
-	            for(int i=0; i<N; i++)
+	            for(int i = 0; i < N; i++)
 	            {
-	                if(mvbBestInliers[i])
+	                if(mvbBestInliers[i]) {
 	                    vbInliers[mvKeyPointIndices[i]] = true;
+                    } else {
+                        outlier_feature_indices.push_back(mvKeyPointIndices[i]);
+                    }
 	            }
 	            Tout = mBestTcw;
 	            return true;

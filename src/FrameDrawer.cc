@@ -21,6 +21,7 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include "log-macro.hpp"
 
 #include<mutex>
 
@@ -55,8 +56,12 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
     map<long unsigned int, cv::Point2f> mProjectPoints;
     map<long unsigned int, cv::Point2f> mMatchedInImage;
 
+    vector<bool> _our_outliers;
+
     cv::Scalar standardColor(0,255,0);
     cv::Scalar odometryColor(255,0,0);
+    cv::Scalar outlierColor(0,0,255);
+    // DEBUG_LOG(stderr, "DrawFrame: start");
 
     //Copy variables within scoped mutex
     {
@@ -153,6 +158,13 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
         mnTrackedVO=0;
         const float r = 5;
         int n = vCurrentKeys.size();
+        //     vector<MapPoint*> mvpLocalMap;
+        // vector<cv::KeyPoint> mvMatchedKeys;
+        // vector<MapPoint*> mvpMatchedMPs;
+        // vector<cv::KeyPoint> mvOutlierKeys;
+        // vector<MapPoint*> mvpOutlierMPs;
+        // DEBUG_LOG(stderr, "vCurrentKeys.size() = %ld, mvpLocalMap.size() = %ld, mvpMatchedMPs.size() = %ld, mvpOutlierMPs.size() = %ld", vCurrentKeys.size(), mvpLocalMap.size(), mvpMatchedMPs.size(), mvpOutlierMPs.size());
+        // DEBUG_LOG(stderr, "mvMatchedKeys.size() = %ld, mvOutlierKeys.size() = %ld", mvMatchedKeys.size(), mvOutlierKeys.size());
         for(int i=0;i<n;i++)
         {
             if(vbVO[i] || vbMap[i])
@@ -181,8 +193,13 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
                 // This is a match to a MapPoint in the map
                 if(vbMap[i])
                 {
-                    cv::rectangle(im,pt1,pt2,standardColor);
-                    cv::circle(im,point,2,standardColor,-1);
+                    auto color = standardColor;
+                    if (this->_our_outliers[i]) {
+                        color = outlierColor;
+                    }
+                    
+                    cv::rectangle(im,pt1,pt2,color);
+                    cv::circle(im,point,2,color,-1);
                     mnTracked++;
                 }
                 else // This is match to a "visual odometry" MapPoint created in the last frame
@@ -403,6 +420,9 @@ void FrameDrawer::Update(Tracking *pTracker)
     mvpOutlierMPs.clear();
     mvpOutlierMPs.reserve(N);
 
+    this->_our_outliers.clear();
+    this->_our_outliers.reserve(N);
+
     if(pTracker->mLastProcessedState==Tracking::NOT_INITIALIZED)
     {
         mvIniKeys=pTracker->mInitialFrame.mvKeys;
@@ -410,11 +430,17 @@ void FrameDrawer::Update(Tracking *pTracker)
     }
     else if(pTracker->mLastProcessedState==Tracking::OK)
     {
+        int registered_outliers_count = 0;
         for(int i=0;i<N;i++)
         {
             MapPoint* pMP = pTracker->mCurrentFrame.mvpMapPoints[i];
             if(pMP)
             {
+                this->_our_outliers[i] = pMP->registered_outlier;
+                if (pMP->registered_outlier) {
+                    registered_outliers_count++;
+                    // DEBUG_LOG(stderr, "registered_outlier at index %d", i);
+                }
                 if(!pTracker->mCurrentFrame.mvbOutlier[i])
                 {
                     if(pMP->Observations()>0)
@@ -431,6 +457,7 @@ void FrameDrawer::Update(Tracking *pTracker)
                 }
             }
         }
+        // DEBUG_LOG(stderr, "registered_outliers_count %d", registered_outliers_count);
 
     }
     mState=static_cast<int>(pTracker->mLastProcessedState);

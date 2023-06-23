@@ -371,7 +371,9 @@ protected:
 public:
     cv::Mat mImRight;
     // ADDED(19-05-2023 14:48:02, jens, outlier): circular buffer for outlier memory, memory size 10 frames
-    CircularBuffer<std::vector<MapPoint*>, 10> outlier_memory;
+    // CircularBuffer<std::vector<MapPoint*>, 10> outlier_memory;
+    // Try with a larger memory size
+    CircularBuffer<std::vector<MapPoint*>, 50> outlier_memory;
 };
 
 } //namespace ORB_SLAM

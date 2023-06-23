@@ -84,6 +84,8 @@ protected:
     map<long unsigned int, cv::Point2f> mmProjectPoints;
     map<long unsigned int, cv::Point2f> mmMatchedInImage;
 
+    vector<bool> _our_outliers;
+
 };
 
 } //namespace ORB_SLAM

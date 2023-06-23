@@ -69,7 +69,7 @@ namespace ORB_SLAM3{
 
         //Find metod is necessary?
 
-        bool iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers, Eigen::Matrix4f &Tout);
+        bool iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers, Eigen::Matrix4f &Tout, vector<std::size_t> &outlier_feature_indices); // ADDED(19-05-2023 14:36:29, jens, outliers): output outlier list
 
         //Type definitions needed by the original code
 
