@@ -49,7 +49,7 @@ namespace ORB_SLAM3
         // Search between two vectors of MapPoints. Returns number of matches
         // Using brute force to match descriptors with the Hamming distance
         // Used to filter outliers
-        int SearchByHamming(const std::vector<MapPoint*> &map_points_1, const std::vector<MapPoint*> &map_points_2, std::vector<MapPoint*> &map_points_out, const std::uint8_t hamming_threshold)
+        int SearchByHamming(const std::vector<MapPoint*> &map_points_1, const std::vector<MapPoint*> &map_points_2, std::vector<MapPoint*> &map_points_out, const std::uint8_t hamming_threshold);
 
         // Project MapPoints tracked in last frame into the current frame and search matches.
         // Used to track from previous frame (Tracking)

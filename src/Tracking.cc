@@ -3660,8 +3660,10 @@ bool Tracking::Relocalization()
             // ADDED(22-05-2023 09:31:20, jens, filtering): outliers being filtered from vvpMapPointMatches before ransac
             // filtering known outliers from vvpMapPointMatches
             // every outlier in the circular buffer is a known outlier
-            vector<vector<MapPoint*>> outlier_matches;
-            outlier_matches.resize(outlier_memory.size());
+            vector<vector<MapPoint*>> outlier_matches_1;
+            vector<vector<MapPoint*>> outlier_matches_2;
+            outlier_matches_1.resize(outlier_memory.size());
+            outlier_matches_2.resize(outlier_memory.size());
             int outlier_match_amount = 0;
 
             std::uint8_t hamming_threshold = 16;
@@ -3670,10 +3672,10 @@ bool Tracking::Relocalization()
                 vector<MapPoint*> frame_outliers = outlier_memory[i_of];
 
                 // find matches brute force with hammind distance on bit level
-                outlier_match_amount += matcher.SearchByHamming(frame_outliers, vvpMapPointMatches[i], outlier_matches[i_of], hamming_threshold);
+                outlier_match_amount += matcher.SearchByHamming(frame_outliers, vvpMapPointMatches[i], outlier_matches_1[i_of], outlier_matches_2[i_of], hamming_threshold);
 
                 // remove outliers from vvpMapPointMatches
-                for (auto outlier_match : outlier_matches[i_of]) {
+                for (auto outlier_match : outlier_matches_2[i_of]) {
                     vvpMapPointMatches[i].erase(std::remove(vvpMapPointMatches[i].begin(), vvpMapPointMatches[i].end(), outlier_match), vvpMapPointMatches[i].end());
                 }
             }

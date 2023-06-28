@@ -216,7 +216,7 @@ namespace ORB_SLAM3
     // Search between two vectors of MapPoints. Returns number of matches
     // Using brute force to match descriptors with the Hamming distance
     // Used to filter outliers
-    int ORBmatcher::SearchByHamming(const std::vector<MapPoint*> &map_points_1, const std::vector<MapPoint*> &map_points_2, std::vector<MapPoint*> &map_points_out, const std::uint8_t hamming_threshold)
+    int ORBmatcher::SearchByHamming(const std::vector<MapPoint*> &map_points_1, const std::vector<MapPoint*> &map_points_2, std::vector<MapPoint*> &map_points_out_1, std::vector<MapPoint*> &map_points_out_2, const std::uint8_t hamming_threshold)
     {
         int matches = 0;
 
@@ -232,8 +232,8 @@ namespace ORB_SLAM3
 
                 // valid match if distance is below threshold
                 if (dist < hamming_threshold) {
-                    map_points_out.push_back(mp_1);
-                    map_points_out.push_back(mp_2);
+                    map_points_out_1.push_back(mp_1);
+                    map_points_out_2.push_back(mp_2);
                     matches++;
                 }
             }
