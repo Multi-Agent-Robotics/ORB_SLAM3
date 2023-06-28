@@ -3660,36 +3660,60 @@ bool Tracking::Relocalization()
             // ADDED(22-05-2023 09:31:20, jens, filtering): outliers being filtered from vvpMapPointMatches before ransac
             // filtering known outliers from vvpMapPointMatches
             // every outlier in the circular buffer is a known outlier
-            bool filtering = false;
-            for (auto mappoint : vvpMapPointMatches[i]) {
-                // for each entry of mappoint lists in the circular buffer
-                // check each mappoint if it is a known outlier
-                // if it is a known outlier, remove it from vvMapPointMatches
+            vector<vector<MapPoint*>> outlier_matches;
+            outlier_matches.resize(outlier_memory.size());
+            int outlier_match_amount = 0;
 
-                for (auto frame_outliers : outlier_memory) {
-                    // for each frame_outliers in the circular buffer
-                    // check if the mappoint is in the frame_outliers
-                    // if it is, remove it from vvMapPointMatches
-                    // if it is not, continue
-                    if (std::find(frame_outliers.begin(), frame_outliers.end(), mappoint) != frame_outliers.end()) {
+            std::uint8_t hamming_threshold = 16;
 
-                        // TODO(24-05-2023 09:46:24, jens, test): print or count if anything is filtered
-                        // COMMENT(24-05-2023 09:48:50, jens, match): maybe match similarly to SearchByBoW instead
+            for (int i_of = 0; i_of < outlier_memory.size(); i_of++) {
+                vector<MapPoint*> frame_outliers = outlier_memory[i_of];
 
-                        // if the mappoint is in the frame_outliers
-                        // remove it from vvMapPointMatches
-                        vvpMapPointMatches[i].erase(std::remove(vvpMapPointMatches[i].begin(), vvpMapPointMatches[i].end(), mappoint), vvpMapPointMatches[i].end());
+                // find matches brute force with hammind distance on bit level
+                outlier_match_amount += matcher.SearchByHamming(frame_outliers, vvpMapPointMatches[i], outlier_matches[i_of], hamming_threshold);
 
-                        // set filtering to true
-                        if (!filtering) {
-                            filtering = true;
-                        }
-                    }
+                // remove outliers from vvpMapPointMatches
+                for (auto outlier_match : outlier_matches[i_of]) {
+                    vvpMapPointMatches[i].erase(std::remove(vvpMapPointMatches[i].begin(), vvpMapPointMatches[i].end(), outlier_match), vvpMapPointMatches[i].end());
                 }
             }
+
+            // ADDED(28-06-2023 11:27:00, jens, filtering): outliers being filtered from vvpMapPointMatches before ransac
+            // filtering known outliers from vvpMapPointMatches
+
+            // bool filtering = false;
+            // for (auto mappoint : vvpMapPointMatches[i]) {
+            //     // for each entry of mappoint lists in the circular buffer
+            //     // check each mappoint if it is a known outlier
+            //     // if it is a known outlier, remove it from vvMapPointMatches
+
+            //     for (auto frame_outliers : outlier_memory) {
+            //         // for each frame_outliers in the circular buffer
+            //         // check if the mappoint is in the frame_outliers
+            //         // if it is, remove it from vvMapPointMatches
+            //         // if it is not, continue
+
+
+            //         if (std::find(frame_outliers.begin(), frame_outliers.end(), mappoint) != frame_outliers.end()) {
+
+            //             // TODO(24-05-2023 09:46:24, jens, test): print or count if anything is filtered
+            //             // COMMENT(24-05-2023 09:48:50, jens, match): maybe match similarly to SearchByBoW instead
+
+            //             // if the mappoint is in the frame_outliers
+            //             // remove it from vvMapPointMatches
+            //             vvpMapPointMatches[i].erase(std::remove(vvpMapPointMatches[i].begin(), vvpMapPointMatches[i].end(), mappoint), vvpMapPointMatches[i].end());
+
+            //             // set filtering to true
+            //             if (!filtering) {
+            //                 filtering = true;
+            //             }
+            //         }
+            //     }
+            // }
+
             // if we have filtered outliers from vvpMapPointMatches
             // nmatches must have decreased thus needing to be updates
-            if (filtering) {
+            if (outlier_match_amount > 0) {
                 nmatches = vvpMapPointMatches[i].size();
             }
             // ----------------------------------------------------------------------------------------------
