@@ -281,9 +281,9 @@ namespace ORB_SLAM3 {
             cv::Point3f P3Dw(p(0),p(1),p(2));
             cv::Point2f P2D = mvP2D[i];
 
-            float xc = mRi[0][0]*P3Dw.x+mRi[0][1]*P3Dw.y+mRi[0][2]*P3Dw.z+mti[0];
-            float yc = mRi[1][0]*P3Dw.x+mRi[1][1]*P3Dw.y+mRi[1][2]*P3Dw.z+mti[1];
-            float zc = mRi[2][0]*P3Dw.x+mRi[2][1]*P3Dw.y+mRi[2][2]*P3Dw.z+mti[2];
+            float xc = mRi[0][0] * P3Dw.x + mRi[0][1] * P3Dw.y + mRi[0][2] * P3Dw.z + mti[0];
+            float yc = mRi[1][0] * P3Dw.x + mRi[1][1] * P3Dw.y + mRi[1][2] * P3Dw.z + mti[1];
+            float zc = mRi[2][0] * P3Dw.x + mRi[2][1] * P3Dw.y + mRi[2][2] * P3Dw.z + mti[2];
 
             cv::Point3f P3Dc(xc,yc,zc);
             cv::Point2f uv = mpCamera->project(P3Dc);

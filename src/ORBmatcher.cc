@@ -18,6 +18,7 @@
 
 
 #include "ORBmatcher.h"
+#include "log-macro.hpp"
 
 #include<limits.h>
 
@@ -219,25 +220,42 @@ namespace ORB_SLAM3
     int ORBmatcher::SearchByHamming(const std::vector<MapPoint*> &map_points_1, const std::vector<MapPoint*> &map_points_2, std::vector<MapPoint*> &map_points_out_1, std::vector<MapPoint*> &map_points_out_2, const std::uint8_t hamming_threshold)
     {
         int matches = 0;
+        int mp1_null_count = 0;
+        int mp2_null_count = 0;
+        DEBUG_LOG(stderr, "map_points_1.size() = %ld, map_points_2.size() = %ld", map_points_1.size(), map_points_2.size());
 
         // compare all descriptors from map_points_1 with all descriptors from map_points_2
-        for (auto &mp_1 : map_points_1) {
-            for (auto &mp_2 : map_points_2) {
-                
+        for (auto mp_1 : map_points_1) {
+            if (mp_1 == nullptr) {
+                mp1_null_count++;
+                continue;
+            }
+            for (auto mp_2 : map_points_2) {
+                if (mp_2 == nullptr) {
+                    mp2_null_count++;
+                    continue;
+                }
+                // DEBUG_LOG(stderr, "about to call GetDescriptor()");
+                // DEBUG_LOG(stderr, "address of mp_1 = %p, adress of mp_2 %p", mp_1, mp_2);
                 const cv::Mat mp_descriptor_1 = mp_1->GetDescriptor();
                 const cv::Mat mp_descriptor_2 = mp_2->GetDescriptor();
 
+                // DEBUG_LOG(stderr, "about to call DescriptorDistance()");
                 // get distance in hamming space at bit level
                 const int dist = DescriptorDistance(mp_descriptor_1, mp_descriptor_2);
+                // DEBUG_LOG(stderr, "dist = %d", dist);
 
                 // valid match if distance is below threshold
-                if (dist < hamming_threshold) {
+                if (dist <= hamming_threshold) {
                     map_points_out_1.push_back(mp_1);
                     map_points_out_2.push_back(mp_2);
                     matches++;
                 }
             }
         }
+
+        DEBUG_LOG(stderr, "mp1_null_count = %d, mp2_null_count = %d", mp1_null_count, mp2_null_count);
+
         return matches;
     }
 

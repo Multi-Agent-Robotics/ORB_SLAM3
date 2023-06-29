@@ -30,6 +30,7 @@
 #include "GeometricTools.h"
 #include "log-macro.hpp"
 
+#include <cstdio>
 #include <iostream>
 
 #include <mutex>
@@ -2004,6 +2005,9 @@ void Tracking::Track()
                     }
                     else
                     {
+                        static unsigned int relocalization_count_state_recently_lost = 0;
+                        relocalization_count_state_recently_lost++;
+                        DEBUG_LOG(stderr, "relocalization_count_state_recently_lost: %d", relocalization_count_state_recently_lost);
                         // Relocalization
                         bOK = Relocalization();
                         //std::cout << "mCurrentFrame.mTimeStamp:" << to_string(mCurrentFrame.mTimeStamp) << std::endl;
@@ -2045,6 +2049,11 @@ void Tracking::Track()
             {
                 if(mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD)
                     Verbose::PrintMess("IMU. State LOST", Verbose::VERBOSITY_NORMAL);
+
+                static unsigned int relocalization_count_state_lost = 0;
+                relocalization_count_state_lost++;
+                DEBUG_LOG(stderr, "relocalization_count_state_lost: %d", relocalization_count_state_lost);
+                            
                 bOK = Relocalization();
             }
             else
@@ -2081,6 +2090,10 @@ void Tracking::Track()
                         vbOutMM = mCurrentFrame.mvbOutlier;
                         TcwMM = mCurrentFrame.GetPose();
                     }
+                    static unsigned int relocalization_count_state_not_lost_and_VO = 0;
+                    relocalization_count_state_not_lost_and_VO++;
+                    DEBUG_LOG(stderr, "relocalization_count_state_not_lost_and_VO: %d", relocalization_count_state_not_lost_and_VO);
+                        
                     bOKReloc = Relocalization();
 
                     if(bOKMM && !bOKReloc)
@@ -2941,8 +2954,8 @@ bool Tracking::TrackWithMotionModel()
 
     if(mbOnlyTracking)
     {
-        mbVO = nmatchesMap<10;
-        return nmatches>20;
+        mbVO = nmatchesMap < 10;
+        return nmatches > 20;
     }
 
     if (mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD)
@@ -3614,7 +3627,9 @@ void Tracking::UpdateLocalKeyFrames()
 bool Tracking::Relocalization()
 {
     static unsigned int number_of_times_called = 0;
-    DEBUG_LOG(stderr, "Relocalization called %d times", number_of_times_called++);
+    number_of_times_called++;
+    static unsigned int total_number_of_outliers = 0;
+    DEBUG_LOG(stderr, "Relocalization() called %d times", number_of_times_called);
     // Verbose::PrintMess("Starting relocalization", Verbose::VERBOSITY_NORMAL);
     // Compute Bag of Words Vector
     mCurrentFrame.ComputeBoW();
@@ -3646,7 +3661,7 @@ bool Tracking::Relocalization()
 
     int nCandidates=0;
 
-    for(int i=0; i<nKFs; i++)
+    for(int i=0; i < nKFs; i++)
     {
         KeyFrame* pKF = vpCandidateKFs[i];
         if(pKF->isBad())
@@ -3666,19 +3681,31 @@ bool Tracking::Relocalization()
             outlier_matches_2.resize(outlier_memory.size());
             int outlier_match_amount = 0;
 
-            std::uint8_t hamming_threshold = 16;
+            std::uint8_t hamming_threshold = static_cast<std::uint8_t>(256 / 4.0);
 
             for (int i_of = 0; i_of < outlier_memory.size(); i_of++) {
+
                 vector<MapPoint*> frame_outliers = outlier_memory[i_of];
-
+                if (frame_outliers.size() == 0) {
+                    continue;
+                }
                 // find matches brute force with hammind distance on bit level
-                outlier_match_amount += matcher.SearchByHamming(frame_outliers, vvpMapPointMatches[i], outlier_matches_1[i_of], outlier_matches_2[i_of], hamming_threshold);
-
+                const auto outlier_matches = matcher.SearchByHamming(frame_outliers, vvpMapPointMatches[i], outlier_matches_1[i_of], outlier_matches_2[i_of], hamming_threshold);
+                outlier_match_amount += outlier_matches;
                 // remove outliers from vvpMapPointMatches
+                static unsigned int total_number_of_erased = 0;
+                const auto size_before = vvpMapPointMatches[i].size();
+                // DEBUG_LOG(stderr, "vvpMapPointMatches[%d] size before: %ld", i, vvpMapPointMatches[i].size());
                 for (auto outlier_match : outlier_matches_2[i_of]) {
                     vvpMapPointMatches[i].erase(std::remove(vvpMapPointMatches[i].begin(), vvpMapPointMatches[i].end(), outlier_match), vvpMapPointMatches[i].end());
                 }
+                const auto size_after = vvpMapPointMatches[i].size();
+                total_number_of_erased += size_before - size_after;
+                // DEBUG_LOG(stderr, "vvpMapPointMatches[%d] size after: %ld", i, vvpMapPointMatches[i].size());
+                DEBUG_LOG(stderr, "total_number_of_erased: %d", total_number_of_erased);
             }
+
+            DEBUG_LOG(stderr, "Outlier matches (with Hamming threshold %d): %d", hamming_threshold, outlier_match_amount);
 
             // ADDED(28-06-2023 11:27:00, jens, filtering): outliers being filtered from vvpMapPointMatches before ransac
             // filtering known outliers from vvpMapPointMatches
@@ -3719,9 +3746,10 @@ bool Tracking::Relocalization()
                 nmatches = vvpMapPointMatches[i].size();
             }
             // ----------------------------------------------------------------------------------------------
-            if(nmatches<15)
+            if(nmatches < 15)
             {
                 vbDiscarded[i] = true;
+                DEBUG_LOG(stderr, "nmaches < 15, discarding keyframe %d", i);
                 continue;
             }
             else
@@ -3766,11 +3794,13 @@ bool Tracking::Relocalization()
             bool bTcw = pSolver->iterate(5, bNoMore, vbInliers, nInliers, eigTcw, outlier_feature_indices);
 
             for (auto index : outlier_feature_indices) {
-                
+                // DEBUG_LOG(stderr, "outlier feature at index: %ld", index);
                 outlier_features.push_back(vvpMapPointMatches[i][index]);
+                total_number_of_outliers++;
             }
 
-            DEBUG_LOG(stderr, "outlier_features.size(): %d", outlier_features.size());
+            DEBUG_LOG(stderr, "outlier_features.size(): %ld", outlier_features.size());
+            DEBUG_LOG(stderr, "total_number_of_outliers: %d", total_number_of_outliers);
 
             // ADDED(22-05-2023 09:33:30, jens, register): registering outliers and remembering them
             // the outlier_features are to be registered as outliers
