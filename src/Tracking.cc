@@ -19,6 +19,8 @@
 
 #include "Tracking.h"
 
+#include "log-macro.hpp"
+
 #include "ORBmatcher.h"
 #include "FrameDrawer.h"
 #include "Converter.h"
@@ -3611,8 +3613,10 @@ void Tracking::UpdateLocalKeyFrames()
 
 bool Tracking::Relocalization()
 {
-    Verbose::PrintMess("Starting relocalization", Verbose::VERBOSITY_NORMAL);
-    // Compute Bag of Words Vector
+    static unsigned int number_of_times_called = 0;
+    number_of_times_called++;
+    DEBUG_LOG(stderr, "Relocalization() called %d times", number_of_times_called);// Compute Bag of Words Vector
+
     mCurrentFrame.ComputeBoW();
 
     // Relocalization is performed when tracking is lost
